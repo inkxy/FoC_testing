@@ -212,8 +212,8 @@ def main():
     model.eval()
     print("load metrics...")
     rouge = evaluate.load("rouge")
-    # bleu = evaluate.load("bleu")
-    # meteor = evaluate.load("meteor")
+    bleu = evaluate.load("bleu")
+    meteor = evaluate.load("meteor")
     print("start evaluating...")
     for batch in tqdm(valid_dataloader):
         labels = batch.pop("labels")
@@ -233,14 +233,18 @@ def main():
         if accelerator.is_main_process:
             try:
                 rouge_output = rouge.compute(predictions=pred_str, references=label_str)
-                print("[-] batch metric:\n",rouge_output)
+                bleu_output = bleu.compute(predictions=pred_str, references=label_str, max_order=4, smooth=False)
+                meteor_output = meteor.compute(predictions=pred_str, references=label_str)
+                print("[-] batch metric (rouge):\n",rouge_output)
+                print("[-] batch metric (bleu-4):\n",bleu_output)
+                print("[-] batch metric (meteor):\n",meteor_output)
             except:
-                print("[!] get rouge scores error!")
+                print("[!] get scores error!")
 
     if accelerator.is_main_process:
         # save predictions and references to file
         timestap = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
-        save_to = os.path.join(checkpoint_path,f"{__file__}.{os.path.basename(args.data_file)}.{args.src_domain}2{args.tgt_domain}.{timestap}.json")
+        save_to = os.path.join('evaluations/',f"{os.path.basename(__file__)}.{os.path.basename(args.data_file)}.{args.src_domain}2{args.tgt_domain}.{timestap}.json")
         pred_results = dict()
         for p_item,t_item in zip(predctions,targets):
             idx = list(p_item.keys())[0]
@@ -265,10 +269,10 @@ def main():
             refs.append(get_comment(t))
         rouge_scores = rouge.compute(predictions=preds, references=refs)
         print(f"[+] binary code summarization scores:\n",rouge_scores)
-        # bleu_scores = bleu.compute(predictions=preds, references=refs, max_order=4, smooth=False)
-        # print("bleu scores:\n",bleu_scores)
-        # meteor_scores = meteor.compute(predictions=preds, references=refs)
-        # print("meteor scores:\n",meteor_scores)
+        bleu_scores = bleu.compute(predictions=preds, references=refs, max_order=4, smooth=False)
+        print("bleu-4 scores:\n",bleu_scores)
+        meteor_scores = meteor.compute(predictions=preds, references=refs)
+        print("meteor scores:\n",meteor_scores)
 
 if __name__ == "__main__":
     main()
